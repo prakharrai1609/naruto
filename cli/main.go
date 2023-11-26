@@ -44,5 +44,5 @@ func printUsage() {
 
 func printAvailableCommands() {
 	fmt.Println("Available commands:")
-	fmt.Println("1. Generate")
+	fmt.Println(Green + "1. Generate" + Reset)
 }

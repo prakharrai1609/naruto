@@ -4,34 +4,33 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
+
+	"github.com/prakharrai1609/naruto/naruto/middlewares"
 )
+
+// globalIDCounter is a package-level variable for generating unique IDs.
+var globalIDCounter int
+var idMutex sync.Mutex
 
 // App represents the naruto web application.
 type App struct {
-	middlewareHandlers []Middleware
+	middlewareHandlers []middlewares.Middleware
 	routeHandlers      map[string]http.Handler
-}
-
-// Middleware is a function type for middleware handlers.
-type Middleware func(http.Handler) http.Handler
-
-// MiddlewareFunc is a function type for middleware handlers.
-type MiddlewareFunc func(http.ResponseWriter, *http.Request, http.Handler)
-
-// MiddlewareWrapper wraps a function in a middleware handler.
-func MiddlewareWrapper(fn MiddlewareFunc) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fn(w, r, next)
-		})
-	}
+	uniqueID           int
 }
 
 // New creates a new naruto web application.
 func New() *App {
-	return &App{
+	idMutex.Lock()
+	defer idMutex.Unlock()
+
+	globalIDCounter++
+	app := &App{
 		routeHandlers: make(map[string]http.Handler),
+		uniqueID:      globalIDCounter,
 	}
+	return app
 }
 
 // Get registers a GET route with the specified path and handler.
@@ -80,8 +79,8 @@ func (app *App) Connect(path string, handler http.HandlerFunc) {
 }
 
 // Use registers a middleware for a specific route or wildcard route.
-func (app *App) Use(route string, middleware Middleware) {
-	app.middlewareHandlers = append(app.middlewareHandlers, func(next http.Handler) http.Handler {
+func (app *App) Use(route string, middleware middlewares.Middleware) {
+	fn := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasPrefix(r.URL.Path, route) {
 				middleware(next).ServeHTTP(w, r)
@@ -89,7 +88,8 @@ func (app *App) Use(route string, middleware Middleware) {
 			}
 			next.ServeHTTP(w, r)
 		})
-	})
+	}
+	app.middlewareHandlers = append(app.middlewareHandlers, fn)
 }
 
 // UseRouter registers a sub-router as middleware for a specific route.
@@ -109,20 +109,35 @@ func (app *App) UseRouter(route string, subRouter *App) {
 }
 
 // UseGlobal registers a global middleware for all routes.
-func (app *App) UseGlobal(middleware Middleware) {
+func (app *App) UseGlobal(middleware middlewares.Middleware) {
 	app.middlewareHandlers = append(app.middlewareHandlers, middleware)
 }
 
 // handle registers a route with the specified method, path, and handler.
 func (app *App) handle(method, path string, handler http.Handler) {
-	key := method + path
+
+	if path[len(path)-1] == '/' {
+		path = path[:len(path)-1]
+	}
+
+	key := method + path + "_" + fmt.Sprint(app.uniqueID)
+	fmt.Println("key: ", key)
 	app.routeHandlers[key] = handler
 }
 
-// ServeHTTP implements the http.Handler interface for naruto.App.
+/*
+ServeHTTP implements the http.Handler interface for naruto.App.
+It first runs the route specific middlewares.
+After that it runs the global middlewares.
+Finally it runs the API handler.
+*/
 func (app *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	if path[len(path)-1] == '/' {
+		path = path[:len(path)-1]
+	}
 
-	handler, ok := app.routeHandlers[r.Method+r.URL.Path]
+	handler, ok := app.routeHandlers[r.Method+path+"_"+fmt.Sprint(app.uniqueID)]
 	if !ok {
 		http.NotFound(w, r)
 		return

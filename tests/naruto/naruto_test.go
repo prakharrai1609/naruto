@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/prakharrai1609/naruto/naruto"
+	"github.com/prakharrai1609/naruto/naruto/middlewares"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNaruto(t *testing.T) {
@@ -17,13 +19,10 @@ func TestNaruto(t *testing.T) {
 		fmt.Println("Handler for /route1/subpath1")
 	})
 
-	// Register route-level middleware 1
-	// app.Use("/route1", middleware1)
-
 	// Use middleware1 with the wrapper.
-	app.Use("/route1", naruto.MiddlewareWrapper(middleware1))
+	app.Use("/route1", middlewares.MiddlewareWrapper(middleware1))
 
-	// Register route-level middleware 2
+	// Use middleware without wrapper.
 	app.Use("/route1", middleware2)
 
 	// Register global middleware
@@ -53,18 +52,8 @@ func TestNaruto(t *testing.T) {
 
 	// Print the response status and body
 	fmt.Println("Response Status:", resp.Status)
-	// Read the response body if needed
-	// responseBody, _ := ioutil.ReadAll(resp.Body)
-	// fmt.Println("Response Body:", string(responseBody))
+	require.Equal(t, resp.StatusCode, http.StatusOK)
 }
-
-// func middleware1(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		fmt.Println("Middleware 1 for /route1")
-// 		// fmt.Fprintf(w, "SERVER RESPONSE MIDDLEWARE 1: %s", r.URL.Path)
-// 		next.ServeHTTP(w, r)
-// 	})
-// }
 
 // middleware1 is a simple middleware function.
 func middleware1(w http.ResponseWriter, r *http.Request, next http.Handler) {

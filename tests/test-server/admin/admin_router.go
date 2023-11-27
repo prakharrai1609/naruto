@@ -15,5 +15,10 @@ func NewRouter() *naruto.App {
 		fmt.Fprintln(w, "Handling GET request to /admin/create")
 	})
 
+	// Define admin routes
+	adminRouter.Get("/aman", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Handling GET request to /admin/aman")
+	})
+
 	return adminRouter
 }

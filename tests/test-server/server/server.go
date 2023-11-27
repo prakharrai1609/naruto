@@ -6,6 +6,7 @@ import (
 
 	"github.com/prakharrai1609/naruto/naruto"
 	admin_test "github.com/prakharrai1609/naruto/tests/test-server/admin"
+	user_test "github.com/prakharrai1609/naruto/tests/test-server/user"
 )
 
 func main() {
@@ -13,9 +14,11 @@ func main() {
 
 	// Create admin router
 	adminRouter := admin_test.NewRouter()
+	userRouter := user_test.NewRouter()
 
 	// Mount the admin router under /admin
 	app.UseRouter("/admin", adminRouter)
+	app.UseRouter("/user", userRouter)
 
 	app.Get("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%s", "Naruto app is healthy")
